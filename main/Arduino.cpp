@@ -341,10 +341,13 @@ void eeprom_init() {
 
 /************************************* 旋钮相关 *************************************/
 
+#include "driver/gpio.h"
+#include "esp_intr_alloc.h"
+
 //旋钮引脚
-#define   AIO   PB12
-#define   BIO   PB13
-#define   SW    PB14
+#define   AIO   GPIO_NUM_10
+#define   BIO   GPIO_NUM_6
+#define   SW    GPIO_NUM_12
 
 //按键ID
 #define   BTN_ID_CC           0
@@ -387,58 +390,74 @@ void virtualCW() {
 }
 
 
-void knob_inter() {
-//    btn.alv = digitalRead(AIO);
-//    btn.blv = digitalRead(BIO);
-//    if (!btn.flag && btn.alv == LOW)
-//    {
-//        btn.CW_1 = btn.blv;
-//        btn.flag = true;
-//    }
-//    if (btn.flag && btn.alv)
-//    {
-//        btn.CW_2 = !btn.blv;
-//        if (btn.CW_1 && btn.CW_2)
-//        {
-//            btn.id = ui.param[KNOB_DIR];
-//            btn.pressed = true;
-//        }
-//        if (btn.CW_1 == false && btn.CW_2 == false)
-//        {
-//            btn.id = !ui.param[KNOB_DIR];
-//            btn.pressed = true;
-//        }
-//        btn.flag = false;
-//    }
+void IRAM_ATTR knob_inter(void* arg) {
+    btn.alv = gpio_get_level(AIO);
+    btn.blv = gpio_get_level(BIO);
+    if (!btn.flag && btn.alv == 0) {
+        btn.CW_1 = btn.blv;
+        btn.flag = true;
+    }
+    if (btn.flag && btn.alv) {
+        btn.CW_2 = !btn.blv;
+        if (btn.CW_1 && btn.CW_2) {
+            btn.id = ui.param[KNOB_DIR];
+            btn.pressed = true;
+        }
+        if (!btn.CW_1 && !btn.CW_2) {
+            btn.id = !ui.param[KNOB_DIR];
+            btn.pressed = true;
+        }
+        btn.flag = false;
+    }
 }
 
 void btn_scan() {
-//    btn.val = digitalRead(SW);
-//    if (btn.val != btn.val_last)
-//    {
-//        btn.val_last = btn.val;
-//        delay(ui.param[BTN_SPT]);
-//        btn.val = digitalRead(SW);
-//        if (btn.val == LOW)
-//        {
-//            btn.pressed = true;
-//            btn.count = 0;
-//            while (!digitalRead(SW))
-//            {
-//                btn.count++;
-//                delay(1);
-//            }
-//            if (btn.count < ui.param[BTN_LPT])  btn.id = BTN_ID_SP;
-//            else  btn.id = BTN_ID_LP;
-//        }
-//    }
+    btn.val = gpio_get_level(SW);
+    if (btn.val != btn.val_last) {
+        btn.val_last = btn.val;
+        delay(ui.param[BTN_SPT]);
+        btn.val = gpio_get_level(SW);
+        if (btn.val == 0) {
+            btn.pressed = true;
+            btn.count = 0;
+            while (gpio_get_level(SW) == 0) {
+                btn.count++;
+                // vTaskDelay(pdMS_TO_TICKS(1));
+                delay(1);
+            }
+            if (btn.count < ui.param[BTN_LPT]) {
+                btn.id = BTN_ID_SP;
+            } else {
+                btn.id = BTN_ID_LP;
+            }
+        }
+    }
 }
 
 void btn_init() {
-//    pinMode(AIO, INPUT);
-//    pinMode(BIO, INPUT);
-//    pinMode(SW, INPUT_PULLUP);
-//    attachInterrupt(digitalPinToInterrupt(AIO), knob_inter, CHANGE);
+    gpio_config_t io_conf;
+
+    // 配置AIO引脚
+    io_conf.intr_type = GPIO_INTR_ANYEDGE;
+    io_conf.mode = GPIO_MODE_INPUT;
+    io_conf.pin_bit_mask = (1ULL << AIO);
+    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+    gpio_config(&io_conf);
+
+    // 配置BIO引脚
+    io_conf.pin_bit_mask = (1ULL << BIO);
+    gpio_config(&io_conf);
+
+    // 配置SW引脚
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    io_conf.pin_bit_mask = (1ULL << SW);
+    io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
+    gpio_config(&io_conf);
+
+    // 注册中断处理函数
+    gpio_install_isr_service(0);
+    gpio_isr_handler_add(AIO, knob_inter, (void*) AIO);
 }
 
 /************************************ 初始化函数 ***********************************/

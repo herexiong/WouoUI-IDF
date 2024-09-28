@@ -81,17 +81,17 @@ knob_config_t cfg;
 void app_main(void) {
 // create knob
 
-    cfg.default_direction = 0,
-    cfg.gpio_encoder_a = 10,
-    cfg.gpio_encoder_b = 6,
+    // cfg.default_direction = 0,
+    // cfg.gpio_encoder_a = 10,
+    // cfg.gpio_encoder_b = 6,
 
-    s_knob = iot_knob_create(&cfg);
-    if (NULL == s_knob) {
-        ESP_LOGE(TAG, "knob create failed");
-    }
+    // s_knob = iot_knob_create(&cfg);
+    // if (NULL == s_knob) {
+    //     ESP_LOGE(TAG, "knob create failed");
+    // }
 
-    iot_knob_register_cb(s_knob, KNOB_LEFT, knob_left_cb, NULL);
-    iot_knob_register_cb(s_knob, KNOB_RIGHT, knob_right_cb, NULL);
+    // iot_knob_register_cb(s_knob, KNOB_LEFT, knob_left_cb, NULL);
+    // iot_knob_register_cb(s_knob, KNOB_RIGHT, knob_right_cb, NULL);
 
 
     xTaskCreatePinnedToCore(task_test_SSD1306i2c, "task_test_SSD1306i2c", 4 * 1024, NULL, 5, NULL, 0);
